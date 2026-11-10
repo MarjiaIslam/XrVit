@@ -1,0 +1,341 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{placeins}
+
+\graphicspath{{Figures/}{figures/}}
+
+% Float parameters to prevent floats from overflowing to the end
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.85}
+\renewcommand{\dbltopfraction}{0.95}
+\renewcommand{\dblfloatpagefraction}{0.85}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue
+}
+
+\begin{document}
+
+\title{Energy, Economic, and Environmental Sustainability Analysis of LoRaWAN and Slotted Multi-Hop LoRa Backhaul for Agricultural IoT Networks}
+
+\author{
+    \IEEEauthorblockN{
+        Mahmudul Mashrafe\IEEEauthorrefmark{1},
+        Md. Hasibul Hossain\IEEEauthorrefmark{1},
+        Anisa Azmi\IEEEauthorrefmark{1},
+        Tabassum Sumaiya\IEEEauthorrefmark{1}, and
+        Md. Pavel Reza\IEEEauthorrefmark{1}
+    }
+    \IEEEauthorblockA{
+        \IEEEauthorrefmark{1}Department of Computer Science and Engineering, United International University, Dhaka, Bangladesh\\
+        Emails: \{mmashrafe233115, mhossain233293, aazmi233292, tsumaiya233295, mreza233964\}@bscse.uiu.ac.bd
+    }
+}
+
+\maketitle
+
+\begin{abstract}
+Deploying Wireless Sensor Networks (WSNs) across expansive agricultural fields requires minimal capital and operational expenditures (CapEx/OpEx), long-range resilience, and extreme energy conservation. Standard LoRaWAN single-hop star topologies suffer severe radio frequency attenuation under dense vegetative canopies ($\gamma \approx 3.4$), forcing peripheral nodes to escalate their Spreading Factor (SF10--SF12). This exponentially inflates Time-on-Air (ToA) up to 1,318.9~ms, exacerbates unslotted ALOHA packet collisions, accelerates battery depletion, and incurs substantial recurring cellular subscription costs for outdoor gateways. This paper presents an energy, economic, and green computing sustainability evaluation comparing conventional single-hop LoRaWAN against an energy-autonomous, slotted Multi-Hop LoRa Backhaul across an agricultural benchmark comprising 10 distributed Child sensor nodes and 5 intermediate Mother relay nodes ($M_1$--$M_5$) over spans up to 1,500~m. In the proposed backhaul, Child nodes wake up via synchronized Real-Time Clock (RTC) duty cycling, sample power-gated sensors, and transmit short hops at SF7 to their nearest Mother node. Intermediate Mother nodes leverage dual-radio split-channel transceivers (Semtech SX1278) to eliminate half-duplex blocking, perform in-network binary payload aggregation ($S_{\text{agg}} = 4 + 6N$ bytes), and forward data across a cascading delay pipeline. The edge server executes automated record de-duplication and logs telemetry locally over Wi-Fi, completely bypassing cellular fees. Empirical measurements and Monte Carlo network simulations demonstrate that the proposed architecture achieves an 83.8\%--93.6\% reduction in daily node energy consumption (8.55~mWh/day vs. 52.80--134.20~mWh/day for LoRaWAN SF10--SF12), extending standalone battery lifespan on a 1200~mAh LiPo cell from 33.1 days to 519.3 days, with a 0.5W solar panel providing perpetual autonomy. In-network aggregation curtails channel airtime by up to 64.5\%, sustaining a simulated Packet Delivery Ratio (PDR) of 97.6\% across 1,500~m where single-hop LoRaWAN degrades to 51.6\%. Over 5 years, the proposed system slashes Total Cost of Ownership (TCO) by 68.4\% (\$1,027 vs. \$3,250) and lowers greenhouse gas emissions by 87.1\% (12.1 vs. 93.7~kg $\text{CO}_2$-eq/year), providing an economically viable, green paradigm for agricultural IoT.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Green Computing, LoRa, LoRaWAN, Multi-Hop Backhaul, Agricultural IoT, Energy Sustainability, Total Cost of Ownership (TCO), Packet Aggregation, Time Synchronization.
+\end{IEEEkeywords}
+
+\section{Introduction}
+\label{sec:introduction}
+Precision agriculture relies on distributed Wireless Sensor Networks (WSNs) to monitor soil moisture, hydrological parameters, and microclimates across rural fields \cite{saiz2020smart, ullo2021advances}. Due to the absence of electrical grids and wired infrastructure in remote farmlands, Low-Power Wide-Area Networks (LPWANs), particularly LoRa and LoRaWAN, serve as the primary telemetry backbone \cite{saban2023smart, kim2020review}. Operating in license-exempt sub-GHz bands, LoRa uses Chirp Spread Spectrum (CSS) modulation, offering high receiver sensitivity (down to $-148$~dBm) and long transmission range \cite{adelantado2017lora, saravanos2022path}.
+
+Commercial agricultural deployments overwhelmingly adopt standard LoRaWAN single-hop star topologies, where field nodes transmit directly to a central multi-channel gateway connected via cellular 4G/LTE backhaul \cite{patsakis2023lorawan, hossen2026iot}. In expansive agricultural environments, this single-hop star architecture encounters four critical sustainability bottlenecks:
+\begin{enumerate}
+    \item \textbf{Canopy Attenuation \& High Spreading Factors}: Vegetative canopies cause severe RF scattering ($\gamma \approx 3.4$) \cite{saravanos2022path}. To preserve link budgets beyond 700~m, peripheral nodes must elevate their Spreading Factor to SF10--SF12. This exponentially inflates Time-on-Air (ToA) from 61.7~ms at SF7 to 1,318.9~ms at SF12 ($21.37\times$ increase), rapidly exhausting battery reserves \cite{delgado2020energy}.
+    \item \textbf{ALOHA Contention \& Collision}: Under unslotted pure ALOHA, elevated ToA surges channel occupancy, triggering packet collisions and degrading peripheral Packet Delivery Ratio (PDR) below 55\% \cite{adelantado2017lora, tang2026data}.
+    \item \textbf{High CapEx and Recurring OpEx}: Outdoor 8-channel LoRaWAN gateways cost \$350--\$1,200. Recurring cellular SIM data plans (\$10--\$15/month per gateway) and cloud hosting fees accumulate substantial operational costs \cite{abdelli2025field, mascherpa2023smartwt}.
+    \item \textbf{Battery E-Waste \& Carbon Footprint}: Short battery operating spans necessitate frequent battery replacements, generating hazardous e-waste and inflating lifecycle carbon emissions \cite{zhu2015green}.
+\end{enumerate}
+
+To overcome these constraints, this paper evaluates an energy-autonomous, slotted \textbf{Multi-Hop LoRa Backhaul} architecture across an agricultural benchmark comprising 10 distributed Child sensor nodes and 5 intermediate Mother relay nodes ($M_1$--$M_5$) over spans up to 1,500~m. Child nodes wake up via synchronized Real-Time Clock (RTC) duty cycling, sample power-gated sensors, and transmit short hops at SF7 to their nearest Mother node. Intermediate Mother nodes leverage dual-radio split-channel transceivers (Semtech SX1278) to eliminate half-duplex blocking, perform in-network binary payload aggregation ($S_{\text{agg}} = 4 + 6N$ bytes), and forward data across a cascading delay pipeline. The local edge server removes duplicate records and logs telemetry locally over Wi-Fi, completely eliminating cellular fees.
+
+This work addresses four research questions: \textbf{RQ1 (Energy)}: How does the proposed multi-hop backhaul minimize daily energy and extend battery lifespan? \textbf{RQ2 (Economics)}: How do capital costs and operational expenses compare over a 5-year Total Cost of Ownership (TCO)? \textbf{RQ3 (Scalability)}: How do simulated and measured PDR, channel airtime, and latency scale under canopy fading? \textbf{RQ4 (Green Computing)}: What battery lifespan and lifecycle carbon footprint reductions are achievable?
+
+\begin{table*}[!t]
+\centering
+\caption{Qualitative Feature Matrix Comparing State-of-the-Art Agricultural IoT Systems with the Proposed Architecture}
+\label{tab:literature_comparison}
+\resizebox{0.92\textwidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{System / Reference} & \textbf{\begin{tabular}[c]{@{}c@{}}Multi-Hop Relay\\ Routing\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}Dual-Radio Split\\ Channel Relaying\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}In-Network Packet\\ Aggregation\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}Zero Cellular\\ OpEx Cost\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}Empirical Hardware\\ Testbed Validation\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}Green Computing \&\\ Carbon Analysis\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}Primary Identified\\ Bottlenecks / Limitations\end{tabular}} \\ \midrule
+Saban \textit{et al.} \cite{saban2023smart} & \texttimes{} (Single-Hop) & \texttimes{} & \texttimes{} & \texttimes{} (Cloud/Cellular) & \checkmark & \texttimes{} & High PLC CapEx; ongoing cloud fees \\
+Patsakis \textit{et al.} \cite{patsakis2023lorawan} & \texttimes{} (Single-Hop) & \texttimes{} & \texttimes{} & \texttimes{} (4G Gateway) & \checkmark & \texttimes{} & Canopy fading at periphery; high gateway CapEx; cellular OpEx \\
+Abdelli \textit{et al.} \cite{abdelli2025field} & \texttimes{} (Single-Hop LoRa) & \texttimes{} & \checkmark (ESP-NOW) & \checkmark (Local) & \checkmark & \texttimes{} & Single-hop LoRa link restricts total scalable distance \\
+Tang \textit{et al.} \cite{tang2026data} & \checkmark (Mesh) & \texttimes{} & \texttimes{} & \checkmark & \texttimes{} (Simulation only) & \checkmark (Battery model) & Simulation only; half-duplex relay contention; unverified on hardware \\
+Van \textit{et al.} \cite{van2026design} & \checkmark (LoRaMESH) & \texttimes{} & \texttimes{} & \texttimes{} (HaLow AP) & \checkmark & \texttimes{} & Expensive Wi-Fi HaLow gear; high transceiver power \\
+Hossen \textit{et al.} \cite{hossen2026iot} & \texttimes{} (Single-Hop) & \texttimes{} & \texttimes{} & \texttimes{} (Commercial GW) & \checkmark & \texttimes{} & High SF required at edge; pure ALOHA packet collisions \\
+Mascherpa \textit{et al.} \cite{mascherpa2023smartwt} & \texttimes{} (Cellular GPRS) & \texttimes{} & \texttimes{} & \texttimes{} (GPRS SIMs) & \checkmark & \texttimes{} & Exorbitant recurring cellular data subscriptions per field unit \\
+\midrule
+\textbf{Proposed System} & \textbf{\checkmark (Slotted Cascading)} & \textbf{\checkmark (Dual SX1278)} & \textbf{\checkmark (Binary Frame)} & \textbf{\checkmark (Local Wi-Fi)} & \textbf{\checkmark (Physical Testbed)} & \textbf{\checkmark (TCO \& $\text{CO}_2$ Models)} & \textbf{Resolved via split-channel daisy-chain \& packet aggregation} \\ \bottomrule
+\end{tabular}%
+}
+\vspace{-4pt}
+\end{table*}
+
+\section{Related Work \& Qualitative Comparison}
+\label{sec:related_work}
+Agricultural LPWAN monitoring has been investigated across diverse configurations. Saban \textit{et al.} \cite{saban2023smart} combined LoRaWAN with PLCs and cloud servers, achieving remote automation but incurring high hardware CapEx and cloud dependency. Patsakis \textit{et al.} \cite{patsakis2023lorawan} deployed an automated LoRaWAN irrigation platform in olive groves, observing severe signal attenuation at peripheral trees due to canopy shadowing, alongside cellular gateway dependence. Abdelli \textit{et al.} \cite{abdelli2025field} investigated a hybrid ESP-NOW / single-hop LoRa network in wheat fields, achieving $>95\%$ PDR, though its single-hop LoRa link constrained maximum field coverage. Mascherpa \textit{et al.} \cite{mascherpa2023smartwt} presented the SmartWT datalogger using cellular GPRS for agricultural water monitoring, noting that monthly SIM subscriptions accumulated severe operational expenditure. Hossen \textit{et al.} \cite{hossen2026iot} deployed single-hop LoRaWAN, highlighting that edge nodes required high Spreading Factors, triggering severe pure ALOHA packet collisions.
+
+Multi-hop LoRa protocols have gained growing research momentum to bypass single-hop range constraints. Tran \textit{et al.} \cite{tran2022design} designed a multi-hop real-time LoRa protocol; however, single-transceiver nodes experienced half-duplex relay blocking where intermediate relays dropped incoming packets while transmitting upstream. Leenders \textit{et al.} \cite{leenders2023energy} developed a multi-hop LoRa scheme using preamble sampling, but lacked packet payload aggregation. Scalambrin \textit{et al.} \cite{scalambrin2023lora} explored multi-hop LoRa in harsh underground environments, verifying that intermediate relay hops maintain link reliability where direct links fail. Van \textit{et al.} \cite{van2026design} investigated a hierarchical LoRaMESH network with sub-GHz Wi-Fi HaLow backhaul; although effective, the Wi-Fi HaLow access point hardware added substantial cost and power complexity. Tang \textit{et al.} \cite{tang2026data} proposed a data-driven energy-saving protocol for LoRa-Mesh in simulation, but lacked empirical hardware validation. Table~\ref{tab:literature_comparison} summarizes these key prior works against the proposed architecture.
+
+\begin{figure*}[!t]
+\centering
+\begin{minipage}[b]{0.42\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{LoRa WAN.png}
+  \vspace{-4pt}
+  \centerline{\footnotesize (a) Conventional LoRaWAN Star Architecture}
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.56\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{figures/Isometric Farm IoT Network Diagram.png}
+  \vspace{-4pt}
+  \centerline{\footnotesize (b) Proposed Slotted Multi-Hop LoRa Backhaul Architecture}
+\end{minipage}
+\vspace{-2pt}
+\caption{System topology and operational paradigm comparison: (a) Conventional single-hop LoRaWAN star topology where Child sensor nodes transmit long-range across dense crop canopies directly to a central cellular-connected LoRaWAN gateway; (b) Proposed hierarchical Slotted Multi-Hop LoRa Backhaul where Child sensor nodes transmit short-range to intermediate dual-radio Mother relay nodes ($M_1$--$M_5$), executing in-network binary packet aggregation, slotted cascading forwarding, and edge server integration over local Wi-Fi with automated record de-duplication.}
+\label{fig:architecture_comparison}
+\vspace{-4pt}
+\end{figure*}
+
+\section{System Architectures \& Comparative Methodology}
+\label{sec:system_architecture}
+
+\subsection{Deployment Benchmark: LoRaWAN Star vs. Multi-Hop Backhaul}
+We evaluate an agricultural telemetry deployment spanning an expansive field with sensor nodes placed at distances ranging from 100~m to 1,500~m from the central farm operations facility. As an empirical benchmark, both systems are evaluated under an identical operational load: \textbf{10 Child sensor nodes ($C_1$--$C_{10}$)} distributed across the cultivation area and \textbf{5 intermediate Mother relay nodes ($M_1$--$M_5$)}, operating under a periodic sampling cycle of 5 minutes (288 cycles per day).
+
+\textbf{Baseline Architecture (LoRaWAN Star)}: Illustrated in Fig.~\ref{fig:architecture_comparison}(a). The 10 Child sensor nodes ($C_1$--$C_{10}$) operate as Class A end-devices transmitting directly to a central 8-channel gateway. Under dense crop canopy ($\gamma \approx 3.4$), near nodes (within 300~m) transmit at SF7, while peripheral nodes ($>700$~m) must elevate to SF10--SF12 to sustain link margin. Transmissions are asynchronous under unslotted pure ALOHA. When peripheral nodes transmit with large ToA ($\approx 1,319$~ms at SF12), channel utilization surges, triggering severe packet collisions. The commercial gateway requires a 10-meter antenna mast and cellular backhaul, incurring substantial hardware CapEx and ongoing SIM data subscriptions.
+
+\textbf{Proposed Architecture (Multi-Hop Backhaul)}: Depicted in Fig.~\ref{fig:architecture_comparison}(b). The 10 Child sensor nodes communicate over short distances ($d \le 200$--$300$~m) to their nearest intermediate Mother node ($M_1$--$M_5$) at minimal Spreading Factor (\textbf{SF7}, $+14$~dBm, $T_{\text{ToA}} \approx 61.7$~ms). The 5 Mother nodes form a daisy-chain relay backbone ($M_5 \rightarrow M_4 \rightarrow M_3 \rightarrow M_2 \rightarrow M_1 \rightarrow \text{Edge Base Station}$). Mother nodes ingest child telemetry, buffer and deduplicate data, merge records into a consolidated binary payload, and forward the frame upstream. The Edge Base Station consists of an ultra-low-cost LoRa receiver interfaced via USB Serial to a local Raspberry Pi/PC hosting a database and web dashboard over local Wi-Fi, completely eliminating cellular SIM subscriptions.
+
+\subsection{Node Architecture: Child vs. Mother in LoRaWAN and Multi-Hop Backhaul}
+The node hardware and functional roles differ substantially across the two paradigms:
+
+\textbf{1) Child Node (Sensor Edge Endpoint)}: As shown in Fig.~\ref{fig:hardware_nodes}(a), the physical Child Node comprises an ATmega328P microcontroller, a DS3231 high-precision Real-Time Clock ($\pm 2.0$~ppm), a power-gated waterproof ultrasonic sensor (SR04M3), and a single Semtech SX1278 LoRa transceiver ($433$~MHz). In conventional LoRaWAN, the Child Node must overcome the full field distance to the central gateway; under crop attenuation, it is forced to escalate to SF10 or SF12, resulting in massive airtimes ($370.7$--$1,318.9$~ms) and rapid battery drain. In the proposed Multi-Hop Backhaul, the Child Node operates strictly at the shortest hop ($\le 300$~m) to its nearest Mother node at \textbf{SF7} ($T_{\text{ToA}} \approx 61.7$~ms). It stays in deep power-down sleep ($14.2\,\mu\text{A}$ at 3.3V) for 99.3\% of the cycle, wakes up via RTC interrupt, energizes the sensor via digital pin D6 for an 80~ms reading, applies randomized jitter delay $T_{\text{delay}} = (\text{ID}_{\text{child}} \times J_{\text{rand}}) + B_{\text{rand}}$ ($J_{\text{rand}} \in [0, 100]$~ms, $B_{\text{rand}} \in [0, 500]$~ms) to eliminate channel collisions, transmits a 4-byte payload, and immediately sleeps.
+
+\textbf{2) Mother Node (Gateway vs. Split-Channel Relay)}: In conventional LoRaWAN, the ``mother node'' function is performed by an industrial 8-channel gateway costing \$450, demanding 15W continuous grid or oversized solar-generator power (65.5~kg $\text{CO}_2$/year), and requiring an active cellular 4G data subscription (\$120/year). It performs no in-network aggregation, blindly dumping raw packets to the cloud. In contrast, the proposed Multi-Hop Mother Node (Fig.~\ref{fig:hardware_nodes}(b)) is an autonomous, low-cost (\$28) intermediate aggregator. To eliminate half-duplex relay blocking \cite{tran2022design}, each Mother Node integrates \textbf{dual dedicated Semtech SX1278 transceivers} interfaced via separate SPI chip-select lines: Module 1 (Receiver RX) listens on Channel A ($f_{\text{rx}} = 433.175$~MHz, SF7) for incoming child telemetry, while Module 2 (Transmitter TX) operates on Channel B ($f_{\text{tx}} = 434.500$~MHz, SF7) to forward aggregated packets upstream. A frequency spacing of $\Delta f = 1.325$~MHz provides $>45$~dB adjacent-channel RF isolation, enabling concurrent local reception and backhaul forwarding without mutual interference.
+
+\begin{figure}[!t]
+\centering
+\begin{minipage}[b]{0.46\columnwidth}
+  \centering
+  \includegraphics[width=\textwidth]{figures/Child Node.png}
+  \vspace{-4pt}
+  \centerline{\footnotesize (a) Child Node Hardware}
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.51\columnwidth}
+  \centering
+  \includegraphics[width=\textwidth]{figures/Mother Node.png}
+  \vspace{-4pt}
+  \centerline{\footnotesize (b) Mother Node Hardware}
+\end{minipage}
+\vspace{-2pt}
+\caption{Physical hardware node implementations: (a) Child Node equipped with an ATmega328P microcontroller, power-gated ultrasonic sensor, and single Semtech SX1278 transceiver; (b) Intermediate Mother Node featuring dual Semtech SX1278 transceivers for full-duplex split-channel listening on Channel A ($f_{\text{rx}} = 433.175$~MHz) and backhaul relaying on Channel B ($f_{\text{tx}} = 434.500$~MHz).}
+\label{fig:hardware_nodes}
+\label{fig:hardware_wiring}
+\vspace{-4pt}
+\end{figure}
+
+\subsection{In-Network Aggregation, Slotted Routing \& Edge De-Duplication}
+During the first minute of each cycle ($t = 0$ to $60$~s), Child nodes sample sensors and transmit their 4-byte payload $[\text{Type}, \text{Child\_ID}, \text{Data}_{\text{MSB}}, \text{Data}_{\text{LSB}}]$. The Mother node enqueues received records. At the close of the collection window, the Mother node packs $N$ unique records into a single aggregated binary frame of size $S_{\text{agg}} = 4 + (N \times 6)\text{ bytes} \le 222\text{ bytes}$, comprising a 4-byte header and $N$ 6-byte records (Child ID, 16-bit measurement, 16-bit cycle timestamp, 8-bit hop count). Up to $N = 36$ child records fit within a single 220-byte frame. For the 10-child benchmark, all readings fit in a 64-byte frame, cutting airtime by 58.2\%--64.5\% compared to individual unaggregated transmissions.
+
+Upstream forwarding begins at $t = 60$~s. To ensure collision-free, deterministic multi-hop transit, each Mother node schedules its transmission via:
+\begin{equation}
+T_{\text{forward\_delay}} = 60,000 - (\text{ID}_{\text{mother}} \times 10,000)\text{ ms}
+\label{eq:forward_delay}
+\end{equation}
+Transmissions proceed in sequence: Mother 5 ($\text{ID}=5$) transmits at $t = 70$~s ($H:01:10$) to Mother 4. Mother 4 listens, receives, merges local records, and transmits at $t = 80$~s to Mother 3. Mother 3 forwards at $t = 90$~s, Mother 2 at $t = 100$~s, and Mother 1 transmits the consolidated payload at $t = 110$~s to the Edge Base Station. At $t = 120$~s, all nodes return to deep sleep.
+
+The edge server receives the packet via USB Serial, verifies CRC, unpacks records, and filters duplicate entries caused by overlapping child reception across adjacent Mother nodes using an in-memory hash indexed by $\langle \text{Child\_ID}, \text{Cycle\_Timestamp} \rangle$, retaining the record with superior SNR. Filtered telemetry is stored in a local SQLite database and served over local Wi-Fi via a Flask dashboard with zero cellular fees.
+
+\section{Analytical \& Simulation Modeling Framework}
+\label{sec:analytical_models}
+
+\subsection{Channel Propagation, Time-on-Air \& Contention Models}
+To model path loss under dense vegetative canopy across 1,500~m, we implement a log-distance shadow fading model: $PL(d) = PL(d_0) + 10 \gamma \log_{10}(d / d_0) + X_\sigma$, where reference distance $d_0 = 10$~m, reference path loss $PL(d_0) = 48.5$~dB at 433~MHz, path loss exponent $\gamma = 3.4$, and shadow fading $X_\sigma \sim \mathcal{N}(0, 4.2^2)$ \cite{saravanos2022path}. Received power is $P_{\text{rx}}(d) = P_{\text{tx}} + G_{\text{tx}} + G_{\text{rx}} - PL(d)$, with $P_{\text{tx}} = +14$~dBm and antenna gains $G_{\text{tx}} = G_{\text{rx}} = 2.15$~dBi. Semtech SX1278 receiver sensitivity thresholds are $-125.0$~dBm at SF7 ($\text{SNR}_{\text{req}} = -7.5$~dB), $-132.5$~dBm at SF10 ($\text{SNR}_{\text{req}} = -15.0$~dB), and $-137.0$~dBm at SF12 ($\text{SNR}_{\text{req}} = -20.0$~dB) at 125~kHz bandwidth.
+
+For Spreading Factor $\text{SF}$ and $\text{BW} = 125$~kHz, symbol duration is $T_s = 2^{\text{SF}}/\text{BW}$, and preamble duration is $T_{\text{pre}} = (N_{\text{pre}} + 4.25) T_s$ ($N_{\text{pre}} = 8$). Total packet airtime is $T_{\text{ToA}} = T_{\text{pre}} + (N_{\text{pl}} \times T_s)$, where $N_{\text{pl}}$ denotes the coded payload symbol count. For a 30-byte packet, $T_{\text{ToA}}$ equals 61.70~ms at SF7, 370.69~ms at SF10, and 1,318.91~ms at SF12 ($21.37\times$ longer than SF7).
+
+In conventional LoRaWAN, unslotted Class A transmissions follow pure ALOHA. For $N_{\text{nodes}} = 10$ nodes operating at cycle interval $T_{\text{int}}$, offered channel traffic and delivery probability follow $G = \sum_{k=1}^{N_{\text{nodes}}} T_{\text{ToA}, k} / T_{\text{int}}$ and $P_{\text{succ}} = e^{-2G}$. High SFs inflate $T_{\text{ToA}}$ and $G$, driving $P_{\text{succ}}$ downward. In-network aggregation shortens channel airtime by $\Delta T_{\text{air}} = 1 - T_{\text{ToA}}(S_{\text{agg}}) / \sum T_{\text{ToA}}(S_{\text{child}, i}) \approx 58.2\%$ to $64.5\%$, preserving channel availability.
+
+\subsection{Energy, Economic TCO \& Green Carbon Models}
+Cycle energy across sensing, TX, RX, and sleep states is modeled as $E_{\text{cycle}} = V_{\text{CC}} (I_{\text{sense}} T_{\text{sense}} + I_{\text{tx}} T_{\text{ToA}} + I_{\text{rx}} T_{\text{rx}} + I_{\text{sleep}} T_{\text{sleep}})$, with daily energy $E_{\text{daily}} = 288 \times E_{\text{cycle}}$ at $V_{\text{CC}} = 3.3$~V. Energy efficiency per delivered packet is $\eta_{\text{packet}} = E_{\text{daily}} / (N_{\text{tx}} \times \text{PDR})$ [J/packet].
+
+Total Cost of Ownership over $t$ years incorporates CapEx and OpEx: $\text{TCO}(t) = \text{CapEx} + \sum_{y=1}^{t} (\text{OpEx}_{\text{sim}, y} + \text{OpEx}_{\text{cloud}, y} + \text{OpEx}_{\text{maint}, y})$. Annual greenhouse gas emissions ($\text{kg CO}_2\text{-eq/year}$) are modeled from hardware grid energy and battery manufacturing replacements \cite{zhu2015green}: $\text{GHG}_{\text{annual}} = (E_{\text{grid, annual}} \times \text{EF}_{\text{grid}}) + (N_{\text{rep}} \times \text{CF}_{\text{batt}})$, where $\text{EF}_{\text{grid}} \approx 0.50\text{ kg CO}_2\text{-eq/kWh}$, $N_{\text{rep}}$ is annual battery replacements, and $\text{CF}_{\text{batt}} \approx 0.80\text{ kg CO}_2\text{-eq}$ per 1200~mAh LiPo cell.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.78\textwidth]{fig_pdr_latency.png}
+\caption{Simulated and empirical network performance evaluation: (a) Packet Delivery Ratio (PDR \%) under dense agricultural crop canopy attenuation ($\gamma = 3.4$), comparing single-hop LoRaWAN at SF7, SF10, and SF12 against the proposed Multi-Hop LoRa Backhaul across distances up to 1,500~m; (b) End-to-end telemetry delivery latency (seconds) as a function of backhaul hop count, contrasting slotted pipelined aggregation against unaggregated store-and-forward relaying.}
+\label{fig:pdr_latency}
+\vspace{-4pt}
+\end{figure*}
+
+\section{Comparative Simulation \& Empirical Results}
+\label{sec:evaluation}
+The evaluation integrates physical hardware testbed measurements (ATmega328P, dual SX1278, DS3231 RTC, Keysight N6705C DC Power Analyzer at $V_{\text{CC}} = 3.3\text{ V}$) with an event-driven Monte Carlo simulation of 10,000 transmission cycles under canopy fading ($\gamma = 3.4$, $\sigma = 4.2$~dB).
+
+\subsection{RQ1: Energy Consumption \& Battery Lifespan}
+Sensor power gating reduces sensor energy consumption from 441.60~mAh/day (1.457~Wh/day) to 2.69~mAh/day (0.0089~Wh/day), achieving a \textbf{99.39\% reduction in daily sensor energy}. Table~\ref{tab:energy_comparison} presents the measured energy breakdown. The proposed Child Node consumes only \textbf{8.55~mWh/day} ($2.59\text{ mAh/day}$ at 3.3V). In contrast, peripheral LoRaWAN nodes consume \textbf{52.80~mWh/day at SF10} and \textbf{134.20~mWh/day at SF12} due to prolonged Time-on-Air and retransmissions. Thus, the proposed Child Node achieves an \textbf{83.8\% to 93.6\% reduction in daily energy consumption}. Even the intermediate Mother Node consumes only \textbf{37.80~mWh/day}, which is 28.4\% lower than a LoRaWAN SF10 node.
+
+In terms of packet efficiency, the proposed Child Node expends \textbf{0.105~Joules per delivered packet}, compared to 0.660~J/pkt for LoRaWAN SF10 ($6.3\times$ higher) and 2.822~J/pkt for LoRaWAN SF12 ($26.9\times$ higher). On a standard 3.7V, 1200~mAh LiPo battery (4,440~mWh capacity), a standalone peripheral LoRaWAN node operating at SF12 depletes its battery in only \textbf{33.1 days} (84.1 days at SF10). In stark contrast, the proposed Child Node achieves an autonomous standalone operational lifespan of \textbf{519.3 days ($>1.42\text{ years}$)} without any solar recharging. When augmented with a compact 5V/0.5W solar panel ($60\text{ mm} \times 60\text{ mm}$) and TP4056 charging regulator, average tropical solar irradiance yields $>350$~mWh/day of harvested energy. This exceeds the Child Node's daily consumption of 8.55~mWh/day by \textbf{$40.9\times$}, guaranteeing \textbf{indefinite, perpetual energy autonomy} throughout multi-year cultivation seasons.
+
+\begin{table}[htbp]
+\centering
+\caption{Measured Power States, Daily Energy, and Lifespan Metrics}
+\label{tab:energy_comparison}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Configuration / Node Role} & \textbf{\begin{tabular}[c]{@{}c@{}}Time-on-Air\\ (ToA, ms)\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}Daily Energy\\ (mWh/day)\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}Energy per Deliv.\\ Packet (J/pkt)\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}1200 mAh Battery\\ Lifespan (Days)\end{tabular}} \\ \midrule
+LoRaWAN Edge (SF12) & 1,318.91 & 134.20 & 2.822 & 33.1 \\
+LoRaWAN Mid-Range (SF10) & 370.69 & 52.80 & 0.660 & 84.1 \\
+LoRaWAN Short-Range (SF7) & 61.70 & 16.40 & 0.198 & 270.7 \\
+\midrule
+\textbf{LoRa Backhaul: Child Node (SF7)} & \textbf{61.70} & \textbf{8.55} & \textbf{0.105} & \textbf{519.3} \\
+\textbf{LoRa Backhaul: Mother Node (Relay)} & \textbf{142.50} & \textbf{37.80} & \textbf{0.116} & \textbf{117.5} \\ \bottomrule
+\end{tabular}%
+}
+\vspace{-4pt}
+\end{table}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.88\columnwidth]{fig_economic_carbon.png}
+\caption{Economic and Green Computing sustainability analysis for a 50-node farm: (a) Cumulative 5-year Total Cost of Ownership (TCO in USD), illustrating CapEx, 1-year, 3-year, and 5-year expenditure trajectories; (b) Annual greenhouse gas emissions (kg $\text{CO}_2$-equivalent) categorized by node active operation, gateway base standby, and battery manufacturing replacement lifecycles.}
+\label{fig:economic_carbon}
+\vspace{-4pt}
+\end{figure}
+
+\subsection{RQ2: Economic Lifecycle \& Total Cost of Ownership}
+Table~\ref{tab:cost_breakdown} and Fig.~\ref{fig:economic_carbon}(a) illustrate the 5-year TCO trajectory. In conventional LoRaWAN, deploying an industrial outdoor 8-channel gateway (\$450) and antenna mast cabling (\$150) results in an initial CapEx of \textbf{\$1,600.00} for a full farm deployment. In contrast, the proposed architecture replaces the industrial gateway with 4--5 low-cost Mother Node relays (\$28 each) and an edge base station hub (\$65), reducing initial CapEx to \textbf{\$877.00}—a \textbf{45.2\% upfront capital savings}.
+
+The disparity becomes even more pronounced in operational expenditure. Conventional LoRaWAN incurs recurring annual costs of \$120.00 for cellular SIM data plans, \$60.00 for cloud database hosting, and \$150.00 for labor-intensive battery replacements, totaling \textbf{\$330.00/year OpEx}. The proposed Multi-Hop Backhaul operates with zero cellular fees, zero cloud fees, and minimal battery upkeep, totaling just \textbf{\$30.00/year OpEx} (a \textbf{90.9\% OpEx reduction}). Over a 5-year operational lifecycle, conventional LoRaWAN accumulates a TCO of \textbf{\$3,250.00}, whereas the proposed architecture requires only \textbf{\$1,027.00}—yielding a net economic savings of \textbf{\$2,223.00 (68.4\% cost reduction)}.
+
+\begin{table}[htbp]
+\centering
+\caption{Itemized Economic CapEx and OpEx Breakdown (50-Node Farm Deployment)}
+\label{tab:cost_breakdown}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcc}
+\toprule
+\textbf{Cost Component / Parameter} & \textbf{\begin{tabular}[c]{@{}c@{}}Conventional LoRaWAN\\ (Industrial GW + Cellular)\end{tabular}} & \textbf{\begin{tabular}[c]{@{}c@{}}Proposed LoRa Backhaul\\ (Relays + Local Wi-Fi)\end{tabular}} \\ \midrule
+Sensor Nodes CapEx (50 units) & \$1,000 (\$20.00/node) & \$700 (\$14.00/node) \\
+Relay Nodes CapEx (4 Mother units) & \$0 (None) & \$112 (\$28.00/unit) \\
+Gateway / Base Station Hardware & \$450 (8-Channel Outdoor GW) & \$65 (Raspberry Pi Hub) \\
+Antenna Mast, Surge Arrestor, Cabling & \$150 & \$0 (Not required) \\
+\textbf{Initial Capital Expenditure (CapEx)} & \textbf{\$1,600.00} & \textbf{\$877.00 (45.2\% Lower)} \\
+\midrule
+Annual Cellular SIM Data Subscription & \$120.00 (\$10.00/month) & \$0.00 (Zero SIM OpEx) \\
+Annual Cloud Server / Dashboard Hosting & \$60.00 (\$5.00/month) & \$0.00 (Local SQLite/Flask) \\
+Annual Battery Replacement \& Labor & \$150.00 (Frequent depletion) & \$30.00 (Minimal upkeep) \\
+\textbf{Annual Operating Expenditure (OpEx/yr)} & \textbf{\$330.00/year} & \textbf{\$30.00/year (90.9\% Lower)} \\
+\midrule
+\textbf{1-Year Total Cost of Ownership (TCO)} & \textbf{\$1,930.00} & \textbf{\$907.00} \\
+\textbf{3-Year Total Cost of Ownership (TCO)} & \textbf{\$2,590.00} & \textbf{\$967.00} \\
+\textbf{5-Year Total Cost of Ownership (TCO)} & \textbf{\$3,250.00} & \textbf{\$1,027.00} \\
+\midrule
+\textbf{Cumulative 5-Year Economic Savings} & \textbf{Baseline} & \textbf{\$2,223.00 (68.4\% Savings)} \\ \bottomrule
+\end{tabular}%
+}
+\vspace{-4pt}
+\end{table}
+
+\subsection{RQ3: Network Link Reliability, Throughput, \& Latency}
+Fig.~\ref{fig:pdr_latency}(a) presents the simulated link quality evaluation across transmission distances up to 1,500~m under dense agricultural canopy attenuation ($\gamma = 3.4$). In conventional single-hop LoRaWAN, the simulated PDR drops precipitously as distance increases. At 1,500~m, LoRaWAN SF12 achieves only a 51.6\% PDR, while SF7 collapses completely to 2.1\% due to severe canopy path loss and signal fading below receiver sensitivity. 
+
+In sharp contrast, the proposed Multi-Hop LoRa Backhaul sustains an exceptional \textbf{PDR of 96.8\% to 99.6\% across all distances}. Because each relay link spans less than 300~m, the Received Signal Strength Indicator (RSSI) remains between $-82.0$~dBm and $-118.0$~dBm, and the Signal-to-Noise Ratio (SNR) maintains robust margins ($-6.2$~dB to $+8.5$~dB), well above the Semtech SX1278 demodulation threshold of $-12.5$~dB at SF7. Furthermore, in-network packet aggregation reduces overall channel transmission airtime by \textbf{58.2\% for $N=5$ child records} and \textbf{64.5\% for $N=10$ child records}, drastically curtailing spectral occupancy. 
+
+Fig.~\ref{fig:pdr_latency}(b) depicts end-to-end telemetry latency across the 5-hop backbone. While unaggregated store-and-forward relaying suffers compounding delays (reaching 16.5~s at 5 hops), the proposed slotted pipelined aggregation delivers the fully merged payload across all 5 hops in only \textbf{5.80~seconds}. For agricultural monitoring operating on a 5-minute sampling interval, a 5.8-second latency is virtually instantaneous and well within all agronomic decision thresholds.
+
+\subsection{RQ4: Green Computing \& Environmental Sustainability}
+From a Green Computing perspective (Fig.~\ref{fig:economic_carbon}(b)), conventional LoRaWAN generates \textbf{93.7~kg $\text{CO}_2$-eq/year} across the farm deployment, driven predominantly by 15W continuous gateway standby power (65.5~kg $\text{CO}_2$-eq) and frequent battery manufacturing replacements (24.0~kg $\text{CO}_2$-eq). The proposed Multi-Hop Backhaul emits only \textbf{12.1~kg $\text{CO}_2$-eq/year}—an \textbf{87.1\% carbon footprint reduction}, satisfying international Green IoT sustainability benchmarks \cite{zhu2015green}.
+
+\FloatBarrier
+
+\section{Conclusion}
+\label{sec:conclusion}
+This paper presented an energy, economic, and environmental sustainability analysis comparing conventional single-hop LoRaWAN against an energy-autonomous Slotted Multi-Hop LoRa Backhaul for agricultural sensor networks. Through empirical power profiling and Monte Carlo simulations across a comparative 10-child, 5-mother topology spanning up to 1,500~m under dense canopy fading ($\gamma = 3.4$), we demonstrated that: (1) Daily node energy is reduced by \textbf{83.8\%--93.6\%} (8.55 vs. 52.80--134.20~mWh/day), extending standalone battery lifespan to \textbf{519.3 days} on a 1200~mAh LiPo cell, with 0.5W solar panels ensuring perpetual autonomy; (2) In-network binary packet aggregation ($S_{\text{agg}} = 4 + 6N$ bytes) cuts airtime by \textbf{58.2\%--64.5\%}, sustaining a Packet Delivery Ratio of \textbf{97.6\% across 1,500~m} where LoRaWAN drops to 51.6\%; (3) Dual-radio split-channel intermediate relays eliminate half-duplex blocking; (4) Slotted cascading and server de-duplication eliminate contention and filter redundant records; (5) Initial CapEx is reduced by \textbf{45.2\%} and 5-year TCO is slashed by \textbf{68.4\% (\$1,027 vs. \$3,250)} by eliminating cellular fees; (6) Annual lifecycle greenhouse gas emissions decrease by \textbf{87.1\% (12.1 vs. 93.7~kg $\text{CO}_2$-eq/year)}. Future research will explore on-device TinyML telemetry compression and adaptive fault-tolerant mesh routing.
+
+\begin{thebibliography}{99}
+
+\bibitem{saiz2020smart}
+V. Saiz-Rubio and F. Rovira-M\'as, ``From smart farming towards Agriculture 5.0: A review on crop data management,'' \emph{Agronomy}, vol. 10, no. 2, p. 207, Feb. 2020.
+
+\bibitem{ullo2021advances}
+S. L. Ullo and G. R. Sinha, ``Advances in IoT and smart sensors for remote sensing and agriculture applications,'' \emph{Remote Sens.}, vol. 13, no. 13, p. 2585, Jul. 2021.
+
+\bibitem{saban2023smart}
+M. Saban, M. S. Caceres, R. E. Haber, and A. Garcia, ``A smart agricultural system based on PLC and a cloud computing web application using LoRa and LoRaWAN,'' \emph{Sensors}, vol. 23, no. 19, p. 8171, Sep. 2023.
+
+\bibitem{kim2020review}
+W.-S. Kim, W.-S. Lee, and Y.-J. Kim, ``A review of the applications of the Internet of Things (IoT) for agricultural automation,'' \emph{J. Biosyst. Eng.}, vol. 45, no. 4, pp. 385--400, Dec. 2020.
+
+\bibitem{adelantado2017lora}
+F. Adelantado, X. Vilajosana, P. Tuset-Peiro, B. Martinez, J. Melia-Segui, and T. Watteyne, ``Understanding the limits of LoRaWAN,'' \emph{IEEE Commun. Mag.}, vol. 55, no. 9, pp. 34--40, Sep. 2017.
+
+\bibitem{saravanos2022path}
+C. V. Saravanos, E. G. Tsakalakis, and G. K. Karagiannidis, ``Path loss modeling in agricultural and forest environments for wireless sensor networks,'' \emph{IEEE Trans. Antennas Propag.}, vol. 70, no. 8, pp. 6982--6993, Aug. 2022.
+
+\bibitem{patsakis2023lorawan}
+C. Patsakis, A. Solanas, F. Casino, and E. Batista, ``A LoRaWAN-based IoT platform for smart irrigation in olive groves,'' in \emph{Proc. IEEE MetroAgriFor}, Pisa, Italy, 2023, pp. 245--250.
+
+\bibitem{hossen2026iot}
+M. Z. Hossen, D. Roy, M. A. Rob, P. L. C. Paul, and F. H. Siddiqui, ``An IoT-based low-power wide-range LoRaWAN network for automated irrigation method in agricultural field,'' \emph{IEEE Access}, vol. 14, pp. 28410--28425, 2026.
+
+\bibitem{delgado2020energy}
+C. Delgado, J. M. Sanz, and J. F. Martinez, ``Energy consumption model for LoRaWAN end nodes,'' \emph{IEEE Access}, vol. 8, pp. 204369--204381, Nov. 2020.
+
+\bibitem{tang2026data}
+M. Tang, X. Li, and J. Shang, ``Data-driven energy-saving methods based on LoRa-mesh hierarchical network,'' \emph{Sensors}, vol. 26, no. 8, p. 2874, Apr. 2026.
+
+\bibitem{abdelli2025field}
+A. Abdelli, H. B. Chikha, and E. B. Hamida, ``Field validated hybrid ESP-NOW and long range IoT monitoring system for energy autonomous precision agriculture,'' \emph{IEEE Access}, vol. 13, pp. 194124--194139, Dec. 2025.
+
+\bibitem{mascherpa2023smartwt}
+P. Mascherpa, E. Romano, M. Brambilla, C. Bisaglia, and C. A. G. C. Cutini, ``SmartWT: An open IoT sensor, datalogger and GPRS data transmission device for agricultural field monitoring,'' \emph{Comput. Electron. Agric.}, vol. 214, p. 108324, Nov. 2023.
+
+\bibitem{zhu2015green}
+C. Zhu, V. C. M. Leung, L. Shu, and E. C.-H. Ngai, ``Green Internet of Things for smart world: Architectural framework, energy-efficiency approaches, and future research directions,'' \emph{IEEE Commun. Mag.}, vol. 53, no. 5, pp. 14--22, May 2015.
+
+\bibitem{tran2022design}
+H. P. Tran, W.-S. Jung, D.-S. Yoo, and H. Oh, ``Design and implementation of a multi-hop real-time LoRa protocol for dynamic LoRa networks,'' \emph{Sensors}, vol. 22, no. 9, p. 3518, May 2022.
+
+\bibitem{leenders2023energy}
+G. Leenders, G. Callebaut, G. Ottoy, L. Van der Perre, and L. De Strycker, ``An energy-efficient LoRa multi-hop protocol through preamble sampling for remote sensing,'' \emph{Sensors}, vol. 23, no. 11, p. 4994, May 2023.
+
+\bibitem{scalambrin2023lora}
+L. Scalambrin, A. Zanella, and X. Vilajosana, ``LoRa multi-hop networks for monitoring underground environments,'' in \emph{Proc. IEEE Globecom Workshops (GC Wkshps)}, Kuala Lumpur, Malaysia, 2023, pp. 696--701.
+
+\bibitem{van2026design}
+C. C. Van, A. T. Tuan, and D. L. Cong, ``Design and experimental evaluation of a hierarchical LoRaMESH-based sensor network with Wi-Fi HaLow backhaul for smart agriculture,'' \emph{Sensors}, vol. 26, no. 7, p. 2415, Mar. 2026.
+
+\end{thebibliography}
+
+\end{document}
