@@ -1,0 +1,97 @@
+6.5s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+6.5s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+6.5s 3 0.00s - to python to disable frozen modules.
+6.5s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+7.1s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.1s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.1s 7 0.00s - to python to disable frozen modules.
+7.1s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+26.7s 9 [31mERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+26.7s 10 gradio-client 2.7.2 requires huggingface-hub<3.0,>=1.16.0, but you have huggingface-hub 0.36.2 which is incompatible.
+26.7s 11 gradio 6.30.0 requires huggingface-hub<3.0,>=1.16.0, but you have huggingface-hub 0.36.2 which is incompatible.
+26.7s 12 gradio 6.30.0 requires pillow<13.0,>=8.0, but you have pillow 13.0.0 which is incompatible.
+26.7s 13 diffusers 0.42.0 requires huggingface-hub<3.0,>=1.32.0, but you have huggingface-hub 0.36.2 which is incompatible.[0m[31m
+27.0s 14 [0mNote: you may need to restart the kernel to use updated packages.
+98.8s 15 Protocol checks passed: split=b9f2fbc9aa061dafa76994494b92779651dc3ddd2ed3e7b82c70bbf5cf7071dd; GPU=Tesla T4
+111.4s 16 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+111.4s 17 I0000 00:00:1794458551.280896      23 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+111.6s 18 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+111.6s 19 I0000 00:00:1794458551.280896      23 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+111.6s 20 
+111.6s 21 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+111.6s 22 I0000 00:00:1794458551.280896      23 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+113.5s 23 Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+113.5s 24 
+113.5s 25 Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+125.5s 26 /usr/local/lib/python3.13/dist-packages/torch/autograd/graph.py:869: UserWarning: Memory Efficient attention defaults to a non-deterministic algorithm. To explicitly enable determinism call torch.use_deterministic_algorithms(True, warn_only=False). (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/attention_backward.cu:900.)
+125.5s 27 return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+125.5s 28 
+125.5s 29 /usr/local/lib/python3.13/dist-packages/torch/autograd/graph.py:869: UserWarning: Memory Efficient attention defaults to a non-deterministic algorithm. To explicitly enable determinism call torch.use_deterministic_algorithms(True, warn_only=False). (Triggered internally at /pytorch/aten/src/ATen/native/transformers/cuda/attention_backward.cu:900.)
+125.5s 30 return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+128.7s 31 Traceback (most recent call last):
+128.7s 32 File "<string>", line 1, in <module>
+128.7s 33 import sys;import papermill as pm;pm.execute_notebook("__notebook__.ipynb","__notebook__.ipynb",progress_bar=False,log_output=True,stdout_file=sys.stdout,stderr_file=sys.stderr,allow_errors=False,timeout=43200)
+128.7s 34 ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+128.7s 35 File "/usr/local/lib/python3.13/dist-packages/papermill/execute.py", line 131, in execute_notebook
+128.7s 36 raise_for_execution_errors(nb, output_path)
+128.7s 37 ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+128.7s 38 File "/usr/local/lib/python3.13/dist-packages/papermill/execute.py", line 251, in raise_for_execution_errors
+128.7s 39 raise error
+128.7s 40 papermill.exceptions.PapermillExecutionError:
+128.7s 41 ---------------------------------------------------------------------------
+128.7s 42 Exception encountered at "In [4]":
+128.7s 43 ---------------------------------------------------------------------------
+128.7s 44 RuntimeError                              Traceback (most recent call last)
+128.7s 45 /tmp/ipykernel_23/2913233855.py in <cell line: 0>()
+128.7s 46 ----> 1 smoke_entry()
+128.7s 47 
+128.7s 48 /tmp/ipykernel_23/952917857.py in smoke_entry()
+128.7s 49 1103         workers = NUM_WORKERS
+128.7s 50 1104
+128.7s 51 -> 1105     smoke_test(Args())
+128.7s 52 
+128.7s 53 /tmp/ipykernel_23/952917857.py in smoke_test(args)
+128.7s 54 1041         scaler.scale(loss).backward()
+128.7s 55 1042         scaler.unscale_(optimizer)
+128.7s 56 -> 1043         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0, error_if_nonfinite=True)
+128.7s 57 1044         if not any(
+128.7s 58 1045             parameter.grad is not None and torch.isfinite(parameter.grad).all()
+128.7s 59 
+128.7s 60 /usr/local/lib/python3.13/dist-packages/torch/nn/utils/clip_grad.py in _no_grad_wrapper(*args, **kwargs)
+128.7s 61 40         with torch.no_grad():
+128.7s 62 41             # pyrefly: ignore [invalid-param-spec]
+128.7s 63 ---> 42             return func(*args, **kwargs)
+128.7s 64 43
+128.7s 65 44     functools.update_wrapper(_no_grad_wrapper, func)
+128.7s 66 
+128.7s 67 /usr/local/lib/python3.13/dist-packages/torch/nn/utils/clip_grad.py in clip_grad_norm_(parameters, max_norm, norm_type, error_if_nonfinite, foreach)
+128.7s 68 229             )
+128.7s 69 230     grads = [p.grad for p in parameters if p.grad is not None]
+128.7s 70 --> 231     total_norm = _get_total_norm(grads, norm_type, error_if_nonfinite, foreach)
+128.7s 71 232     _clip_grads_with_norm_(parameters, max_norm, total_norm, foreach)
+128.7s 72 233     return total_norm
+128.7s 73 
+128.7s 74 /usr/local/lib/python3.13/dist-packages/torch/nn/utils/clip_grad.py in _no_grad_wrapper(*args, **kwargs)
+128.7s 75 40         with torch.no_grad():
+128.7s 76 41             # pyrefly: ignore [invalid-param-spec]
+128.7s 77 ---> 42             return func(*args, **kwargs)
+128.7s 78 43
+128.7s 79 44     functools.update_wrapper(_no_grad_wrapper, func)
+128.7s 80 
+128.7s 81 /usr/local/lib/python3.13/dist-packages/torch/nn/utils/clip_grad.py in _get_total_norm(tensors, norm_type, error_if_nonfinite, foreach)
+128.7s 82 109
+128.7s 83 110     if error_if_nonfinite and torch.logical_or(total_norm.isnan(), total_norm.isinf()):
+128.7s 84 --> 111         raise RuntimeError(
+128.7s 85 112             f"The total norm of order {norm_type} for gradients from "
+128.7s 86 113             "`parameters` is non-finite, so it cannot be clipped. To disable "
+128.7s 87 
+128.7s 88 RuntimeError: The total norm of order 2.0 for gradients from `parameters` is non-finite, so it cannot be clipped. To disable this error and scale the gradients by the non-finite norm anyway, set `error_if_nonfinite=False`
+128.7s 89 
+130.7s 90 /usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+130.7s 91 cells[i][c] = re.sub('\\\\\|', '|', cell)
+130.9s 92 /usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+130.9s 93 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+131.6s 94 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+131.7s 95 [NbConvertApp] Writing 106841 bytes to __notebook__.ipynb
+134.2s 96 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+134.9s 97 [NbConvertApp] Writing 528063 bytes to __results__.html

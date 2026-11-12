@@ -1,0 +1,205 @@
+# Evaluation protocol for single-model baselines and distillation on NIH ChestX-ray14.
+# Active study scope: single-model baselines and the registered M10 distillation.
+# Distillation rules retain their registered methodology; this file holds rules, not results.
+
+protocol:
+  id: CXR-SINGLE-MODEL-DISTILL
+  version: "2.2.0"
+  task: multi-label binary classification of 14 findings on frontal chest X-rays
+  label_order: [Atelectasis, Cardiomegaly, Effusion, Infiltration, Mass, Nodule,
+                Pneumonia, Pneumothorax, Consolidation, Edema, Emphysema,
+                Fibrosis, Pleural_Thickening, Hernia]
+  label_note: '"No Finding" is not a label; such an image is an all-zero vector. Every exported array uses this order.'
+
+  goals:
+    primary: Compare the distilled student with its single-model teachers and their probability average on the official NIH test set.
+    endpoints:
+      primary: macro AUROC
+      secondary: [macro AUPRC, macro F1, micro F1, macro precision, macro recall]
+    not_goals:
+      - Clinical validation or deployment claims.
+      - Estimating training-run variability (only one seed is specified).
+
+  data:
+    dataset: NIH ChestX-ray14 (Kaggle nih-chest-xrays/data), 112,120 images, 30,805 patients
+    labels: NLP-mined from radiology reports (noisy)
+    split:
+      id: NIH_OFFICIAL_PV
+      test: every image in the official test_list.txt (25,596 images, 2,797 patients)
+      validation: random 15 % of the patients in train_val_list.txt (sklearn GroupShuffleSplit, seed 42, rows sorted by image index)
+      train: the remaining train_val patients
+      expected_sizes: {train: 73916, val: 12608, test: 25596}
+      list_sha256:
+        train_val_list.txt: 61fbe896321c1c1c8b75f3e4f3a08e4fef6486d95ef8a667c31d4d60dca6cb81
+        test_list.txt: 38ca5ef7f756092946f57c1a59faca882ed589a1ab1f72590b45dc06c6d5e1cc
+      split_file: split_NIH_OFFICIAL_PV.csv (image_index, patient_id, partition; sorted, LF, UTF-8)
+      split_sha256: b9f2fbc9aa061dafa76994494b92779651dc3ddd2ed3e7b82c70bbf5cf7071dd
+      rules:
+        - No patient appears in more than one partition.
+        - The split file must reproduce split_sha256. A model trained on another split is not comparable.
+    known_shift: >-
+      The official test set differs from train/validation: about 1.7x more findings per image, about 3x more
+      images per patient, fewer PA views, and 2-4x higher prevalence for several findings. Report dataset
+      characteristics with results to make this shift visible.
+
+  models:
+    common:
+      input: grayscale PNG -> [0,1] -> bilinear resize (torchvision) -> replicated to 3 channels -> fixed normalisation
+      loss: {name: AsymmetricLoss, gamma_neg: 4, gamma_pos: 1, clip: 0.05}
+      optimizer: AdamW, weight decay 0.05, cosine schedule with 3 % linear warm-up per phase, gradient clipping 1.0
+      phases: head-only warm-up, then fine-tuning
+      augmentation_train_only: {random_resized_crop: {scale: [0.85, 1.0], ratio: [0.9, 1.1]}, hflip_p: 0.5,
+                                rotation: {deg: 7, p: 0.5}, color_jitter: {brightness: 0.1, contrast: 0.1}}
+      early_stopping: validation macro AUROC (raw logits), patience 2 fine-tune epochs, earlier epoch wins ties
+      precision: fp16 autocast (T4 GPU)
+      determinism: cudnn deterministic, seeded DataLoader workers, CUBLAS_WORKSPACE_CONFIG=:4096:8
+      seed: 42
+    M08_CONVNEXT_TINY_ASL_384_CR:
+      role: single-model CNN baseline and student training recipe
+      backbone: convnext_tiny.fb_in22k_ft_in1k (timm), full fine-tune
+      input_size: 384
+      normalisation: ImageNet mean/std
+      head: dropout 0.2 + linear -> 14
+      schedule: 1 warm-up epoch (head LR 1e-3), up to 8 fine-tune epochs (head and backbone LR 1e-4)
+      batch_size: 32
+      drop_path: 0.1
+    M09_RAD_DINO_518_CR:
+      role: single-model RAD-DINO baseline and distillation teacher
+      backbone: microsoft/rad-dino (ViT-B/14), last 8 of 12 blocks + final layernorm trained, layer-wise LR decay 0.8
+      input_size: 518
+      normalisation: {mean: 0.5307, std: 0.2583}
+      pooling: CLS concatenated with mean of patch tokens (1536-d)
+      head: dropout 0.2 + linear -> 14
+      schedule: 2 warm-up epochs (head LR 1e-3), up to 4 fine-tune epochs (head 2e-4, backbone 2e-5)
+      batch_size: 12
+      drop_path: 0.1
+      ema: decay 0.999; EMA weights are the evaluated weights
+    tta: none (logits of the original image only)
+
+  systems:
+    CNN alone: M08 with its own validation calibration and thresholds
+    RAD-DINO alone: M09 with its own validation calibration and thresholds
+    Average CNN+RAD-DINO: mean of the two calibrated probabilities on every image
+    Distilled CNN: M10 student, run alone at inference
+
+  distillation:
+    question: >-
+      Can a ConvNeXt-Tiny trained on the soft predictions of the CNN+RAD-DINO average reach RAD-DINO-level
+      accuracy at the CNN's inference cost? RAD-DINO is used at training time only.
+    teacher:
+      definition: q = (p_M08 + p_M09) / 2, using the calibrated probability outputs of both teachers
+      members:
+        M08_CONVNEXT_TINY_ASL_384_CR: "checkpoint_best.pt sha256 eebd5f662d397d2fedeb5aa3fc70a2b59d70b05923e6c6712bf91049b9df70ad"
+        M09_RAD_DINO_518_CR: "checkpoint_best.pt sha256 070f90c7cf44c54447a015791f5a18d0eb0d8b05bce070450b6c35e91008bd93 (EMA weights); microsoft/rad-dino revision 110cbc18d5133582e320b43d53bf5c44e410c936"
+      calibration: per-class Platt calibration fitted on validation for each teacher; not refitted for soft-label generation
+      soft_labels: >-
+        one forward pass over train images with evaluation transforms (no augmentation); fp16;
+        stored once and reused every epoch. Only train images receive soft labels.
+      weight_note: Equal teacher weights. Do not select or tune teacher weights on the test set.
+    go_no_go:
+      measure: teacher macro AUROC on train images (report each member)
+      rule: >-
+        Go if the teacher's train macro AUROC is < 0.95. At >= 0.95 the teacher reproduces the training labels
+        almost perfectly, its soft labels carry little beyond the hard labels, and the student is not trained.
+    student:
+      model_id: M10_CONVNEXT_TINY_KD_384
+      architecture_and_recipe: >-
+        identical to M08 (same backbone and ImageNet initialisation, not the M08 checkpoint; same input,
+        augmentation, optimiser, schedule, batch size, early stopping, and seed 42). The only change is the target.
+      target: "t = (1 - lambda) * y + lambda * q, lambda = 0.5 (y = hard label, q = teacher soft label)"
+      loss: >-
+        AsymmetricLoss(logits, t) with the common settings. ASL is linear in the target, so this equals
+        0.5 * ASL(logits, y) + 0.5 * ASL(logits, q): both parts on the same scale.
+      model_selection: validation macro AUROC against hard labels, as for M08
+    evaluation:
+      calibration_and_thresholds: fit separately for the student on validation only
+      systems: [CNN alone, RAD-DINO alone, Average CNN+RAD-DINO, Distilled CNN (M10)]
+      endpoints:
+        primary: test macro AUROC of the Distilled CNN
+        secondary: [macro AUPRC, macro F1, micro F1, macro precision, macro recall]
+      comparisons: >-
+        Distilled - CNN, Distilled - RAD-DINO, Distilled - Average; paired patient-level bootstrap;
+        Holm correction over these three comparisons per metric.
+      outcomes:
+        helps: Distilled - CNN macro AUROC significant
+        matches_raddino: lower 95 % CI bound of Distilled - RAD-DINO macro AUROC > -0.005
+        beats_raddino: Distilled - RAD-DINO macro AUROC significant and positive
+        fails: helps not met
+      compute: >-
+        inference cost is the measured M08 latency for the same architecture; compute_ratio = t_M08 / t_M09.
+        Report teacher soft-label pass and student training hours separately.
+    limitations:
+      - One training seed; a small gain may not survive retraining.
+      - Teacher soft labels come from models trained on the same train images, so they are sharper than on unseen images.
+      - Validation is used for teacher calibration, student early stopping, and student calibration/thresholds; test is never used.
+
+  evaluation:
+    order:
+      - "1. Export raw logits for validation and test (npz: image_index, patient_id, logits float32 [N,14], labels uint8 [N,14], label_order, split_sha256)."
+      - "2. Fit per-class Platt calibration p = sigmoid(a_c * z + b_c) on validation logits (binary NLL, L-BFGS)."
+      - "3. Per-class decision threshold maximises validation F1 on calibrated probabilities; candidates are unique validation scores, ties -> smallest; F1 = 0 -> 0.5, flagged."
+      - "4. Apply calibration and thresholds unchanged to test; compute metrics and bootstrap CIs."
+    test_isolation: >-
+      Test logits may be exported during training, but test metrics are computed only after validation-based
+      choices are frozen. Early stopping, calibration, and thresholds never use test data.
+
+  metrics:
+    notation: "per class c: TP, FP, TN, FN at threshold tau_c; P = TP + FN; macro = mean over the 14 classes (nanmean); micro = pooled counts"
+    auroc: "Mann-Whitney form, ties count 0.5 (= sklearn roc_auc_score). Primary endpoint."
+    auprc: "Average precision, step-wise, no interpolation (= sklearn average_precision_score)."
+    precision: "TP / (TP + FP); 0 if nothing predicted positive"
+    recall: "TP / P"
+    specificity: "TN / (TN + FP)"
+    f1: "2TP / (2TP + FP + FN); macro = mean of per-class F1 (not F1 of macro P and R); micro from pooled counts"
+    ece: "15 equal-width bins per class, empty bins skipped; macro mean; diagnostic only"
+    undefined_values: "AUROC/AUPRC with no positives or no negatives -> NaN, excluded from macro mean"
+    rounding: "store full precision; round only when displaying (4 decimals aggregate, 3 per class)"
+
+  statistics:
+    ci: "95 % percentile bootstrap, 1000 resamples of test patients (seed 20260922), same resamples for every system; calibration and thresholds held fixed"
+    paired_comparison: "difference A - B on the same resamples; two-sided p = 2 * min(P(d <= 0), P(d >= 0)), floor 1/1001"
+    multiple_testing: Holm over prespecified comparisons for each metric
+    significant: CI of the difference excludes 0 AND Holm p < 0.05
+    compared_metrics: [macro AUROC, macro AUPRC, macro F1, micro F1, macro precision, macro recall]
+    single_seed_limitation: CIs cover test-set sampling only; they say nothing about retraining with another seed.
+
+  compute:
+    what: forward-pass latency per image on a preloaded tensor, fp16, no TTA
+    how: one Tesla T4; batch sizes 1 and 32; 50 warm-up + 200 timed iterations, CUDA events; 3 repeats; statistic = median of repeat medians
+    weights: random weights of the same architecture are allowed (latency does not depend on weight values)
+    rule: measure both teacher architectures with the same code on the same GPU type
+
+  outputs:
+    per_run_folder: "{dataset}__{split}__{model_id}__s42 (older folders may carry a config hash): config.json, train_log.csv, checkpoint_best.pt, logits_val.npz, logits_test.npz"
+    single_model_files: "split_NIH_OFFICIAL_PV.csv, calibration.json, thresholds.json, timing_<model_id>.json, model run folders"
+    distillation_files: "teacher/{model_id}_logits_train.npz, teacher/{model_id}_logits_val_rebuilt.npz, soft_labels_train.npz, distill_go_no_go.json, qc_session_D.json, M10 run folder, T10_distill_results.csv, T11_distill_paired.csv"
+    presentation:
+      - "Test values are shown as value [ci_low, ci_high]; validation and test never share a column."
+      - "Per-class rows with support < 100 carry a wide-uncertainty flag."
+      - "Every table states split id and hash, seed 42 (single seed), no TTA, Platt calibration, and validation-fitted F1 thresholds."
+
+  quality_control:
+    blocking:
+      QC-01: official split counts and official list-file hashes
+      QC-02: no patient in more than one partition
+      QC-03: split file hash equals the expected hash and the split hash stored in model logits
+      QC-04: compared models have identical validation/test images, order, and labels; test equals the official test list
+      QC-05: exported label order equals protocol label order
+      QC-06: calibration, thresholds, and model selection use validation only
+      QC-07: every stored macro value equals the mean of stored per-class values
+      QC-D1: both teacher checkpoint SHA-256 values equal the recorded values in distillation.teacher.members
+      QC-D2: each rebuilt teacher reproduces its saved validation logits (same image order; minimum per-class correlation >= 0.999; macro AUROC within 0.001)
+      QC-D3: soft labels exist for train images only, in train dataframe order; no validation/test image receives a soft label
+      QC-D4: the student's exported validation/test images, order, labels, and split hash equal M08's
+    warnings:
+      QC-08: timing missing, provisional, or from different GPUs
+      QC-09: single seed
+
+  limitations:
+    - One training seed; no estimate of training variability.
+    - NIH labels are text-mined and noisy; no external test set is included.
+
+  changelog:
+    - version: "2.2.0"
+      scope: Distillation protocol and the single-model teacher inputs used by it.
+      rules: Teacher average, 0.5*y + 0.5*q student target, train-AUROC go/no-go, validation-only choices, QC-D1..D4, and T10-T11 results.

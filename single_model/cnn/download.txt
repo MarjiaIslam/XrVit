@@ -1,0 +1,21 @@
+7.9s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.9s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.9s 3 0.00s - to python to disable frozen modules.
+7.9s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+8.5s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+8.5s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+8.5s 7 0.00s - to python to disable frozen modules.
+8.5s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+37.9s 9 Protocol data checks passed: split=b9f2fbc9aa061dafa76994494b92779651dc3ddd2ed3e7b82c70bbf5cf7071dd; device=cuda; real NIH images=2
+52.4s 10 convnext_tiny: real-image transform, forward, ASL, backward, and optimizer step passed
+54.1s 11 densenet121: real-image transform, forward, ASL, backward, and optimizer step passed
+55.0s 12 resnet50: real-image transform, forward, ASL, backward, and optimizer step passed
+55.3s 13 All single-CNN smoke tests passed.
+61.3s 14 /usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+61.3s 15 cells[i][c] = re.sub('\\\\\|', '|', cell)
+61.5s 16 /usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+61.5s 17 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+62.3s 18 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+62.3s 19 [NbConvertApp] Writing 50751 bytes to __notebook__.ipynb
+64.8s 20 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+65.5s 21 [NbConvertApp] Writing 450447 bytes to __results__.html

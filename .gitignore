@@ -3,11 +3,12 @@
 __pycache__/
 paper/
 results_distill/
-results_layers/
 results_s42/
-
-2-staged_official_split.ipynb
-3-raddino_layer_cut.ipynb
+results_s42_densenet/
+single_model/output/*
+!single_model/output/README.md
+distill/output/*
+!distill/output/README.md
 
 biovil-t.ipynb
 convnext_base_nih_official_split.ipynb
