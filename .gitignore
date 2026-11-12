@@ -21,3 +21,5 @@ attribution_output/
 cxr-attribution-code.zip
 cxr-distill-results.zip
 ResNet50 results.zip
+single_model/cnn/ConvNeXt-Tiny_results.zip
+single_model/cnn/ResNet50_results.zip
